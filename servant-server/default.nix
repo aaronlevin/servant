@@ -4,7 +4,7 @@
 , mmorph, mtl, network, network-uri, parsec, QuickCheck, safe
 , servant, split, stdenv, string-conversions, system-filepath
 , temporary, text, transformers, wai, wai-app-static, wai-extra
-, warp
+, warp, word8
 }:
 mkDerivation {
   pname = "servant-server";
@@ -16,7 +16,7 @@ mkDerivation {
     aeson attoparsec base bytestring containers either filepath
     http-types mmorph mtl network network-uri safe servant split
     string-conversions system-filepath text transformers wai
-    wai-app-static warp
+    wai-app-static warp word8
   ];
   testDepends = [
     aeson base bytestring bytestring-conversion directory doctest
