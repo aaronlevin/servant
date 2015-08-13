@@ -2,6 +2,10 @@ HEAD
 ----
 
 * Support for the `HttpVersion`, `IsSecure`, `RemoteHost` and `Vault` combinators
+* Support for the new authentication framework. Including:
+  * `HasServer` instances for `AuthProtect` in `Strict` and `Lax` mode
+  * `Enter` instances for `AuthProtected`
+  * combinators to support `Basic` authentication.
 
 0.4.1
 -----
