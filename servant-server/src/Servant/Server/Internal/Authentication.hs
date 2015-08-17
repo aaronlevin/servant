@@ -31,7 +31,8 @@ import           Network.Wai                (Request, Response, requestHeaders,
                                              responseBuilder)
 import           Servant.API.Authentication (AuthPolicy (Strict, Lax),
                                              AuthProtected,
-                                             BasicAuth (BasicAuth))
+                                             BasicAuth (BasicAuth),
+                                             DigestAuth (..))
 
 -- | Class to represent the ability to extract authentication-related
 -- data from a 'Request' object.
@@ -105,3 +106,29 @@ basicAuthLax :: KnownSymbol realm
              -> subserver
              -> AuthProtected (BasicAuth realm) usr subserver 'Lax
 basicAuthLax = laxProtect
+
+
+md5 :: B.ByteString -> B.ByteString
+md5 = undefined
+
+intercalate' :: B.ByteString -> [B.ByteString] -> B.ByteString
+intercalate' = undefined
+
+-- | Given a way to extract a HA1 and an authProtect function,
+-- return a function that checks the digestAuth stuff
+digestAuthCheck :: forall realm user. KnownSymbol realm
+                => (user -> B.ByteString) -- HA1
+                -> (DigestAuth realm -> IO (Maybe user)) -- authCheck
+                -> (DigestAuth realm -> IO (Maybe user))
+digestAuthCheck ha1 authCheck authData@(DigestAuth nonce response) = do
+  let realmBytes = (fromString . symbolVal $ (Proxy :: Proxy realm))
+  user <- authCheck authData
+  case user of
+    Just user ->
+      let ha2 = undefined -- MD5(method:digestURI) -- TODO I need the URI and method
+          res = md5 . intercalate' ":" $ [ha1 user, nonce, ha2]
+      in if res == response
+          then return $ Just user
+          else return $ Nothing
+    Nothing   -> return Nothing
+

@@ -29,3 +29,12 @@ data family AuthProtected authdata usr subserver :: AuthPolicy -> *
 data BasicAuth (realm :: Symbol) = BasicAuth { baUser :: ByteString
                                              , baPass :: ByteString
                                              } deriving (Eq, Show, Typeable)
+
+-- | Digest Authentication 
+-- we currently only support 
+--
+
+-- Currently only supports MD5 with no client nonce, aka the "auth" qop
+data DigestAuth (realm :: Symbol) = DigestAuth { daNonce    :: ByteString
+                                               , daResponse :: ByteString
+                                               } deriving (Eq, Show, Typeable)
