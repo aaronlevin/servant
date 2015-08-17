@@ -12,9 +12,11 @@ module Servant.Server.Internal.Authentication
 , basicAuthStrict
 , laxProtect
 , strictProtect
+, digestAuthCheck
         ) where
 
 import           Crypto.Hash.MD5
+import           Crypto.Random
 import           Data.Attoparsec.ByteString.Char8 hiding (isSpace)
 import qualified Data.Attoparsec.ByteString.Char8 as P (takeWhile)
 import qualified Data.ByteString                  as B
@@ -125,10 +127,11 @@ instance AuthData (DigestAuth realm) where
         guard (qop == "auth") -- TODO: Later support others qops
         nonce <- fst . B16.decode <$> lookup "nonce" vals
         user  <- lookup "username" vals
+        realm <- lookup "realm" vals
         resp  <- fst. B16.decode <$> lookup "response" vals
         let uri    = rawPathInfo request
         let method = requestMethod request
-        return $ DigestAuth nonce user resp uri method
+        return $ DigestAuth nonce user realm resp uri method
 
 parseAuthorizationHeader :: Parser [(B.ByteString, B.ByteString)]
 parseAuthorizationHeader = (string "Bearer") *> space *> props
@@ -138,45 +141,22 @@ parseAuthorizationHeader = (string "Bearer") *> space *> props
         word  = takeWhile1 (\x -> (isAlphaNum x) || x =='_' || x == '.' || x=='-' || x ==':')
         quotedString = char '"' *> P.takeWhile (not . (=='"')) <* char '"'
 
-calculateHA1 :: (user -> B.ByteString) -- username
-             -> (user -> B.ByteString) -- password
-             -> (user -> B.ByteString) -- realm
-             -> user
-             -> B.ByteString
-calculateHA1 username password realm user  = 
-  hash . B.intercalate ":" $ [username user, realm user, password user]
-
-
--- Unsafe check with plaintext passwords. One shouldn't use this
--- but instead store the result of calculateHA1 in the database
-digestAuthCheckUnsafe :: forall realm user. KnownSymbol realm
-                      => (user -> B.ByteString) -- username
-                      -> (user -> B.ByteString) -- password
-                      -> (user -> B.ByteString) -- realm
-                      -> (DigestAuth realm -> IO (Maybe user))
-                      -> (DigestAuth realm -> IO (Maybe user))
-digestAuthCheckUnsafe username password realm
-  = digestAuthCheck username (calculateHA1 username password realm) realm
-
--- | Given a way to extract a HA1 and an authProtect function,
--- return a function that checks the digestAuth stuff
--- example:
--- basicAuthLax (digestAuthCheck getHA1 (originalAuthCheck)) myAPI
 digestAuthCheck :: forall realm user. KnownSymbol realm
-                => (user -> B.ByteString) -- username
-                -> (user -> B.ByteString) -- HA1
-                -> (user -> B.ByteString) -- realm
-                -> (DigestAuth realm -> IO (Maybe user)) -- authCheck
+                => (user -> B.ByteString) -- ^ How to get the MD5(user:realm:passwd) hash
+                -> (B.ByteString -> IO (Maybe user)) -- ^ Lookup a user given the username
                 -> (DigestAuth realm -> IO (Maybe user))
-digestAuthCheck username ha1 realm authCheck authData@(DigestAuth name nonce response uri method) = do
-  let realmBytes = (fromString . symbolVal $ (Proxy :: Proxy realm))
-  maybeUser <- authCheck authData
+digestAuthCheck ha1 lookupUser authData = do
+  let realm = (fromString . symbolVal $ (Proxy :: Proxy realm))
+  maybeUser <- lookupUser $ daUser authData
   return $ do
     user <- maybeUser
-    guard ((realm user) == realmBytes)
-    guard ((username user) == name)
-    let ha2 = hash . B.intercalate ":" $ [method, uri]
-    let res = hash . B.intercalate ":" $ [ha1 user, nonce, ha2]
-    guard (res == response)
+    let ha2 = hash . B.intercalate ":" $ [daMethod authData, daURI authData]
+    let res = hash . B.intercalate ":" $ [ha1 user, daNonce authData, ha2]
+    guard $ res == daResponse authData
     return user
 
+
+digestAuthHandlers :: forall realm g. (KnownSymbol realm, CryptoRandomGen g)
+                   => g
+                   -> AuthHandlers (DigestAuth realm)
+digestAuthHandlers g = undefined
