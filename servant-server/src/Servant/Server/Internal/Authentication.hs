@@ -14,25 +14,32 @@ module Servant.Server.Internal.Authentication
 , strictProtect
         ) where
 
-import           Control.Monad              (guard)
-import qualified Data.ByteString            as B
-import           Data.ByteString.Base64     (decodeLenient)
+import           Crypto.Hash.MD5
+import           Data.Attoparsec.ByteString.Char8 hiding (isSpace)
+import qualified Data.Attoparsec.ByteString.Char8 as P (takeWhile)
+import qualified Data.ByteString                  as B
+import qualified Data.ByteString.Base16           as B16 (decode, encode)
+import           Data.ByteString.Base64           (decodeLenient)
 #if !MIN_VERSION_base(4,8,0)
 import           Data.Monoid                ((<>), mempty)
 #else
 import           Data.Monoid                ((<>))
 #endif
-import           Data.Proxy                 (Proxy (Proxy))
-import           Data.String                (fromString)
-import           Data.Word8                 (isSpace, toLower, _colon)
-import           GHC.TypeLits               (KnownSymbol, symbolVal)
-import           Network.HTTP.Types.Status  (status401)
-import           Network.Wai                (Request, Response, requestHeaders,
-                                             responseBuilder)
-import           Servant.API.Authentication (AuthPolicy (Strict, Lax),
-                                             AuthProtected,
-                                             BasicAuth (BasicAuth),
-                                             DigestAuth (..))
+import           Control.Monad                    (guard)
+import           Data.Char                        (isAlphaNum)
+import           Data.Proxy                       (Proxy (Proxy))
+import           Data.String                      (fromString)
+import           Data.Word8                       (isSpace, toLower, _colon)
+import           GHC.TypeLits                     (KnownSymbol, symbolVal)
+import           Network.HTTP.Types.Status        (status401)
+import           Network.Wai                      (Request, Response,
+                                                   rawPathInfo, requestHeaders,
+                                                   requestMethod,
+                                                   responseBuilder)
+import           Servant.API.Authentication       (AuthPolicy (Strict, Lax),
+                                                   AuthProtected,
+                                                   BasicAuth (BasicAuth),
+                                                   DigestAuth (..))
 
 -- | Class to represent the ability to extract authentication-related
 -- data from a 'Request' object.
@@ -108,12 +115,28 @@ basicAuthLax :: KnownSymbol realm
 basicAuthLax = laxProtect
 
 
-md5 :: B.ByteString -> B.ByteString
-md5 = undefined
+instance AuthData (DigestAuth realm) where
+  authData request = do
+    authBs <- lookup "Authorization" (requestHeaders request)
+    case parseOnly parseAuthorizationHeader authBs of
+      Left _ -> Nothing
+      Right vals -> do
+        qop   <- lookup "qop" vals
+        guard (qop == "auth") -- TODO: Later support others qops
+        nonce <- fst . B16.decode <$> lookup "nonce" vals
+        user  <- lookup "username" vals
+        resp  <- fst. B16.decode <$> lookup "response" vals
+        let uri    = rawPathInfo request
+        let method = requestMethod request
+        return $ DigestAuth nonce user resp uri method
 
-intercalate' :: B.ByteString -> [B.ByteString] -> B.ByteString
-intercalate' = undefined
-
+parseAuthorizationHeader :: Parser [(B.ByteString, B.ByteString)]
+parseAuthorizationHeader = (string "Bearer") *> space *> props
+  where props = sepBy1 prop comma
+        comma = many' space *> char ',' *> many' space
+        prop  = (,) <$> (word <* char '=') <*> quotedString
+        word  = takeWhile1 (\x -> (isAlphaNum x) || x =='_' || x == '.' || x=='-' || x ==':')
+        quotedString = char '"' *> P.takeWhile (not . (=='"')) <* char '"'
 
 calculateHA1 :: (user -> B.ByteString) -- username
              -> (user -> B.ByteString) -- password
@@ -121,7 +144,7 @@ calculateHA1 :: (user -> B.ByteString) -- username
              -> user
              -> B.ByteString
 calculateHA1 username password realm user  = 
-  md5 . intercalate' ":" $ [username user, realm user, password user]
+  hash . B.intercalate ":" $ [username user, realm user, password user]
 
 
 -- Unsafe check with plaintext passwords. One shouldn't use this
@@ -145,15 +168,15 @@ digestAuthCheck :: forall realm user. KnownSymbol realm
                 -> (user -> B.ByteString) -- realm
                 -> (DigestAuth realm -> IO (Maybe user)) -- authCheck
                 -> (DigestAuth realm -> IO (Maybe user))
-digestAuthCheck username ha1 realm authCheck authData@(DigestAuth name nonce response) = do
+digestAuthCheck username ha1 realm authCheck authData@(DigestAuth name nonce response uri method) = do
   let realmBytes = (fromString . symbolVal $ (Proxy :: Proxy realm))
   maybeUser <- authCheck authData
   return $ do
     user <- maybeUser
     guard ((realm user) == realmBytes)
     guard ((username user) == name)
-    let ha2 = undefined -- MD5(method:digestURI) -- TODO I need the URI and method
-    let res = md5 . intercalate' ":" $ [ha1 user, nonce, ha2]
+    let ha2 = hash . B.intercalate ":" $ [method, uri]
+    let res = hash . B.intercalate ":" $ [ha1 user, nonce, ha2]
     guard (res == response)
     return user
 

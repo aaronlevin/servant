@@ -38,4 +38,6 @@ data BasicAuth (realm :: Symbol) = BasicAuth { baUser :: ByteString
 data DigestAuth (realm :: Symbol) = DigestAuth { daNonce    :: ByteString
                                                , daUser     :: ByteString
                                                , daResponse :: ByteString
+                                               , daURI      :: ByteString
+                                               , daMethod   :: ByteString
                                                } deriving (Eq, Show, Typeable)
