@@ -114,21 +114,46 @@ md5 = undefined
 intercalate' :: B.ByteString -> [B.ByteString] -> B.ByteString
 intercalate' = undefined
 
+
+calculateHA1 :: (user -> B.ByteString) -- username
+             -> (user -> B.ByteString) -- password
+             -> (user -> B.ByteString) -- realm
+             -> user
+             -> B.ByteString
+calculateHA1 username password realm user  = 
+  md5 . intercalate' ":" $ [username user, realm user, password user]
+
+
+-- Unsafe check with plaintext passwords. One shouldn't use this
+-- but instead store the result of calculateHA1 in the database
+digestAuthCheckUnsafe :: forall realm user. KnownSymbol realm
+                      => (user -> B.ByteString) -- username
+                      -> (user -> B.ByteString) -- password
+                      -> (user -> B.ByteString) -- realm
+                      -> (DigestAuth realm -> IO (Maybe user))
+                      -> (DigestAuth realm -> IO (Maybe user))
+digestAuthCheckUnsafe username password realm
+  = digestAuthCheck username (calculateHA1 username password realm) realm
+
 -- | Given a way to extract a HA1 and an authProtect function,
 -- return a function that checks the digestAuth stuff
+-- example:
+-- basicAuthLax (digestAuthCheck getHA1 (originalAuthCheck)) myAPI
 digestAuthCheck :: forall realm user. KnownSymbol realm
-                => (user -> B.ByteString) -- HA1
+                => (user -> B.ByteString) -- username
+                -> (user -> B.ByteString) -- HA1
+                -> (user -> B.ByteString) -- realm
                 -> (DigestAuth realm -> IO (Maybe user)) -- authCheck
                 -> (DigestAuth realm -> IO (Maybe user))
-digestAuthCheck ha1 authCheck authData@(DigestAuth nonce response) = do
+digestAuthCheck username ha1 realm authCheck authData@(DigestAuth name nonce response) = do
   let realmBytes = (fromString . symbolVal $ (Proxy :: Proxy realm))
-  user <- authCheck authData
-  case user of
-    Just user ->
-      let ha2 = undefined -- MD5(method:digestURI) -- TODO I need the URI and method
-          res = md5 . intercalate' ":" $ [ha1 user, nonce, ha2]
-      in if res == response
-          then return $ Just user
-          else return $ Nothing
-    Nothing   -> return Nothing
+  maybeUser <- authCheck authData
+  return $ do
+    user <- maybeUser
+    guard ((realm user) == realmBytes)
+    guard ((username user) == name)
+    let ha2 = undefined -- MD5(method:digestURI) -- TODO I need the URI and method
+    let res = md5 . intercalate' ":" $ [ha1 user, nonce, ha2]
+    guard (res == response)
+    return user
 

@@ -36,5 +36,6 @@ data BasicAuth (realm :: Symbol) = BasicAuth { baUser :: ByteString
 
 -- Currently only supports MD5 with no client nonce, aka the "auth" qop
 data DigestAuth (realm :: Symbol) = DigestAuth { daNonce    :: ByteString
+                                               , daUser     :: ByteString
                                                , daResponse :: ByteString
                                                } deriving (Eq, Show, Typeable)
