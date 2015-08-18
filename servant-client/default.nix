@@ -1,5 +1,5 @@
-{ mkDerivation, aeson, attoparsec, base, bytestring, deepseq
-, either, exceptions, hspec, http-client, http-client-tls
+{ mkDerivation, aeson, attoparsec, base, bytestring, base64-bytestring
+, deepseq, either, exceptions, hspec, http-client, http-client-tls
 , http-media, http-types, HUnit, network, network-uri, QuickCheck
 , safe, servant, servant-server, stdenv, string-conversions, text
 , transformers, wai, warp
@@ -14,7 +14,7 @@ mkDerivation {
     string-conversions text transformers
   ];
   testDepends = [
-    aeson base bytestring deepseq either hspec http-client http-media
+    aeson base bytestring base64-bytestring deepseq either hspec http-client http-media
     http-types HUnit network QuickCheck servant servant-server text wai
     warp
   ];
