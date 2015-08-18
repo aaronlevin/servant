@@ -27,7 +27,6 @@ import           Control.Applicative                        ((<$>), pure)
 #endif
 import           Control.Monad.Trans.Either                 (EitherT)
 import qualified Data.ByteString                            as B
-import           Data.ByteString.Base64      (decodeLenient)
 import qualified Data.ByteString.Lazy                       as BL
 import qualified Data.Map                                   as M
 import           Data.Maybe                  (mapMaybe, fromMaybe)
