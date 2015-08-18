@@ -3,6 +3,7 @@ HEAD
 
 * Support for the `HttpVersion`, `IsSecure`, `RemoteHost` and `Vault` combinators
 * Added support for `path` on `BaseUrl`.
+* Support for servant's new authentication framework.
 
 0.4.1
 -----
