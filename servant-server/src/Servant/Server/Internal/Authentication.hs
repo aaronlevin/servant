@@ -15,6 +15,7 @@ module Servant.Server.Internal.Authentication
 , digestAuthCheck
         ) where
 
+import           Control.Applicative              ((*>), (<$>), (<*), (<*>))
 import           Crypto.Hash.MD5
 import           Crypto.Nonce                     as Nonce
 import           Data.Attoparsec.ByteString.Char8 hiding (isSpace)
@@ -23,10 +24,9 @@ import qualified Data.ByteString                  as B
 import qualified Data.ByteString.Base16           as B16 (decode, encode)
 import           Data.ByteString.Base64           (decodeLenient)
 #if !MIN_VERSION_base(4,8,0)
-import           Data.Monoid                ((<>), mempty)
-import           Control.Applicative        ((<*),(*>),(<*>),(<$>))
+import           Data.Monoid                      (mempty, (<>))
 #else
-import           Data.Monoid                ((<>))
+import           Data.Monoid                      ((<>))
 #endif
 import           Control.Monad                    (guard)
 import           Data.Char                        (isAlphaNum)
