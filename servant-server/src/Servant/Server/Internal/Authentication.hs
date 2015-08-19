@@ -16,7 +16,7 @@ module Servant.Server.Internal.Authentication
         ) where
 
 import           Crypto.Hash.MD5
-import           Crypto.Random
+import           Crypto.Nonce                     as Nonce
 import           Data.Attoparsec.ByteString.Char8 hiding (isSpace)
 import qualified Data.Attoparsec.ByteString.Char8 as P (takeWhile)
 import qualified Data.ByteString                  as B
@@ -156,7 +156,13 @@ digestAuthCheck ha1 lookupUser authData = do
     return user
 
 
-digestAuthHandlers :: forall realm g. (KnownSymbol realm, CryptoRandomGen g)
-                   => g
-                   -> AuthHandlers (DigestAuth realm)
-digestAuthHandlers g = undefined
+digestAuthHandlers :: forall realm. KnownSymbol realm => AuthHandlers (DigestAuth realm)
+digestAuthHandlers = AuthHandlers onMissingAuthData (const onMissingAuthData)
+  where
+    onMissingAuthData = do
+      g <- Nonce.new
+      nonce <- B16.encode <$> Nonce.nonce128 g
+      opaque <- B16.encode <$> Nonce.nonce128 g
+      let realmBytes = (fromString . symbolVal) (Proxy :: Proxy realm)
+      let headerBytes = "Digest realm=\"" <> realmBytes <> "\", qop=\"auth\",nonce=\""<>nonce<>"\"opaque=\""<>opaque<>"\""
+      return $ responseBuilder status401 [("WWW-Authenticate", headerBytes)] mempty
