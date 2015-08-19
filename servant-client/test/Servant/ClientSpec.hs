@@ -282,7 +282,7 @@ spec = withServer $ \ baseUrl -> do
       Left res <- runEitherT (getPrivatePerson (BasicAuth "xxx" "yyy"))
       case res of
         FailureResponse (Status 401 _) _ _ -> return ()
-        _ -> fail $ "expcted 401 response, but got " <> show res
+        _ -> fail $ "expected 401 response, but got " <> show res
 
     modifyMaxSuccess (const 20) $ do
       it "works for a combination of Capture, QueryParam, QueryFlag and ReqBody" $
