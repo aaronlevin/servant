@@ -24,6 +24,7 @@ import qualified Data.ByteString.Base16           as B16 (decode, encode)
 import           Data.ByteString.Base64           (decodeLenient)
 #if !MIN_VERSION_base(4,8,0)
 import           Data.Monoid                ((<>), mempty)
+import           Control.Applicative        ((<*),(*>),(<*>),(<$>))
 #else
 import           Data.Monoid                ((<>))
 #endif
