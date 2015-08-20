@@ -119,3 +119,20 @@ executable socket-io-chat
   ghc-options: -Wall -O2 -threaded
   hs-source-dirs: socket-io-chat
   default-language: Haskell2010
+
+executable digest-auth
+  main-is: digest-auth.hs
+  build-depends:
+      aeson >= 0.8
+    , base >= 4.7 && < 5
+    , bytestring
+    , http-types
+    , servant == 0.5.*
+    , servant-server == 0.5.*
+    , text
+    , wai
+    , warp
+    , transformers
+    , mtl
+  ghc-options: -Wall -O2 -threaded
+  hs-source-dirs: digest-auth
