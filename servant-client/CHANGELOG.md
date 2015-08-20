@@ -2,6 +2,7 @@ HEAD
 ----
 
 * Support for the `HttpVersion`, `IsSecure`, `RemoteHost` and `Vault` combinators
+* Support for servant's new authentication framework.
 
 0.4.1
 -----
