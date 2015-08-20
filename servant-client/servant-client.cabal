@@ -33,6 +33,7 @@ library
       base >=4.7 && <5
     , aeson
     , attoparsec
+    , base64-bytestring
     , bytestring
     , either
     , exceptions
@@ -63,7 +64,6 @@ test-suite spec
   build-depends:
       base == 4.*
     , aeson
-    , base64-bytestring
     , bytestring
     , deepseq
     , either
