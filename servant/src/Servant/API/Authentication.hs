@@ -30,15 +30,22 @@ data BasicAuth (realm :: Symbol) = BasicAuth { baUser :: ByteString
                                              , baPass :: ByteString
                                              } deriving (Eq, Show, Typeable)
 
--- | Digest Authentication 
--- we currently only support 
---
 
--- Currently only supports MD5 with no client nonce, aka the "auth" qop
-data DigestAuth (realm :: Symbol) = DigestAuth { daNonce    :: ByteString
-                                               , daUser     :: ByteString
-                                               , daRealm    :: ByteString
-                                               , daResponse :: ByteString
-                                               , daURI      :: ByteString
-                                               , daMethod   :: ByteString
-                                               } deriving (Eq, Show, Typeable)
+data Algorithm = MD5 deriving (Eq, Show, Typeable)
+
+-- | Digest Authentication 
+-- Currently only qop=auth and algorithm=MD5 are supported.
+data DigestAuth (realm :: Symbol) = DigestAuth
+  { daUsername   :: ByteString
+  , daRealm      :: ByteString
+  , daNonce      :: ByteString
+  , daDigestURI  :: ByteString
+  , daMethod     :: ByteString
+  , daResponse   :: ByteString
+  , daAlgorithm  :: Algorithm
+  , daCNonce     :: Maybe ByteString
+  , daOpaque     :: Maybe ByteString
+  , daQop        :: Maybe ByteString
+  , daNonceCount :: Maybe ByteString
+  } deriving (Eq, Show, Typeable)
+
