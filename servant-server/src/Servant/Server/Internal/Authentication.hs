@@ -117,8 +117,6 @@ basicAuthLax :: KnownSymbol realm
              -> subserver
              -> AuthProtected (BasicAuth realm) usr subserver 'Lax
 basicAuthLax = laxProtect
-<<<<<<< HEAD
-
 
 parseAlgorithm :: B.ByteString -> Maybe Algorithm
 parseAlgorithm "MD5" = Just MD5
@@ -194,5 +192,3 @@ digestAuthHandlers = AuthHandlers onMissingAuthData (const onMissingAuthData)
       return $ responseBuilder status401 [("WWW-Authenticate", headerBytes)] mempty
 
 digestAuthStrict ha1 lookup subserver = strictProtect (digestAuthCheck ha1 lookup) digestAuthHandlers subserver
-=======
->>>>>>> 8c9d0f2448e36d35ec6b09a0cd3bb844997cb407
