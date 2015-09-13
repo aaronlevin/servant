@@ -78,8 +78,8 @@ instance Hashable Method
 -- POST /foo
 -- @
 data Endpoint = Endpoint
-  { _path           :: [String]     -- type collected
-  , _method         :: Method       -- type collected
+  { _path   :: [String]     -- type collected
+  , _method :: Method       -- type collected
   } deriving (Eq, Ord, Generic)
 
 instance Show Endpoint where
@@ -226,7 +226,6 @@ defResponse = Response
 data AuthenticationInfo = AuthenticationInfo
   { _authIntro        :: String
   , _authDataRequired :: String
-  , _authUserReturned :: String
   } deriving (Eq, Ord, Show)
 
 -- | A datatype that represents everything that can happen
@@ -532,10 +531,13 @@ markdown api = unlines $
         authStr Nothing = []
         authStr (Just auth) =
             "#### Authentication" :
-            "This endpoint is protected." :
+            "" :
             auth ^. authIntro :
-            "Data to supply" :
+            "" :
+            "Clients must supply the following data" :
+            "" :
             auth ^. authDataRequired :
+            "" :
             []
 
         capturesStr :: [DocCapture] -> [String]
