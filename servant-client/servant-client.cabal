@@ -33,6 +33,7 @@ library
       base >=4.7 && <5
     , aeson
     , attoparsec
+    , base64-bytestring
     , bytestring
     , either
     , exceptions

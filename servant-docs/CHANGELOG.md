@@ -2,6 +2,8 @@ HEAD
 ----
 
 * Support for the `HttpVersion`, `IsSecure`, `RemoteHost` and `Vault` combinators
+* Support for new Authentication framework
+* Added `ToAuthInfo` typeclass.
 
 0.4
 ---

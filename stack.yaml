@@ -4,6 +4,7 @@ flags:
 packages:
 - servant/
 - servant-blaze/
+- servant-cassava/
 - servant-client/
 - servant-docs/
 - servant-examples/
@@ -13,5 +14,4 @@ packages:
 - servant-server/
 extra-deps:
 - engine-io-wai-1.0.2
-- attoparsec-0.13.0.1
-resolver: nightly-2015-07-24
+resolver: nightly-2015-09-05
