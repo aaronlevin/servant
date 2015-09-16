@@ -6,9 +6,11 @@
 {-# OPTIONS_HADDOCK not-home    #-}
 module Servant.API.Authentication where
 
-import           Data.ByteString (ByteString)
-import           Data.Typeable   (Typeable)
-import           GHC.TypeLits    (Symbol)
+import           Data.Attoparsec.ByteString
+import           Data.ByteString            (ByteString)
+import           Data.Maybe                 (maybe)
+import           Data.Typeable              (Typeable)
+import           GHC.TypeLits               (Symbol)
 
 -- | we can be either Strict or Lax.
 -- Strict: all handlers under 'AuthProtect' take a 'usr' argument.
@@ -31,21 +33,27 @@ data BasicAuth (realm :: Symbol) = BasicAuth { baUser :: ByteString
                                              } deriving (Eq, Show, Typeable)
 
 
-data Algorithm = MD5 deriving (Eq, Show, Typeable)
+data Algorithm = MD5
+               deriving (Eq, Show, Typeable)
 
 -- | Digest Authentication 
--- Currently only qop=auth and algorithm=MD5 are supported.
-data DigestAuth (realm :: Symbol) = DigestAuth
-  { daUsername   :: ByteString
-  , daRealm      :: ByteString
-  , daNonce      :: ByteString
-  , daDigestURI  :: ByteString
-  , daMethod     :: ByteString
-  , daResponse   :: ByteString
-  , daAlgorithm  :: Algorithm
-  , daCNonce     :: Maybe ByteString
-  , daOpaque     :: Maybe ByteString
-  , daQop        :: Maybe ByteString
-  , daNonceCount :: Maybe ByteString
-  } deriving (Eq, Show, Typeable)
+-- hmm do we want partial functions?
+
+data Qop = Qop
+  { qCNonce     :: ByteString
+  , qNonceCount :: Int
+  }
+
+data DigestAuth (realm :: Symbol) =
+  DigestAuth
+    { daUsername    :: ByteString
+    , daNonce       :: ByteString
+    , daDigestURI   :: ByteString
+    , daMethod      :: ByteString
+    , daResponse    :: ByteString
+    , daAlgorithm   :: Algorithm
+    , daQop         :: Maybe Qop
+    }
+
+
 

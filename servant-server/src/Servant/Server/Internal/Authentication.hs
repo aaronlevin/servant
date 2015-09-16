@@ -16,7 +16,7 @@ module Servant.Server.Internal.Authentication
 , digestAuthStrict
         ) where
 
-import           Control.Applicative              ((*>), (<$>), (<*), (<*>), (<|>))
+import           Control.Applicative              ((*>), (<$>), (<*), (<*>), (<|>), empty)
 import qualified Crypto.Hash.MD5                  as MD5
 import           Crypto.Nonce                     as Nonce
 import           Data.Attoparsec.ByteString.Char8 hiding (isSpace)
@@ -40,10 +40,12 @@ import           Network.Wai                      (Request, Response,
                                                    rawPathInfo, requestHeaders,
                                                    requestMethod,
                                                    responseBuilder)
+import           Numeric                          (showHex)
 import           Servant.API.Authentication       (AuthPolicy (Strict, Lax),
                                                    AuthProtected,
                                                    BasicAuth (BasicAuth),
-                                                   DigestAuth (..), Algorithm (..))
+                                                   DigestAuth (..), Algorithm (..), Qop (..))
+import           Text.Read                        (readMaybe)
 
 -- | Class to represent the ability to extract authentication-related
 -- data from a 'Request' object.
@@ -119,31 +121,36 @@ basicAuthLax :: KnownSymbol realm
 basicAuthLax = laxProtect
 
 parseAlgorithm :: B.ByteString -> Maybe Algorithm
-parseAlgorithm "MD5" = Just MD5
-parseAlgorithm _ = Nothing
+parseAlgorithm "MD5" = return MD5
+parseAlgorithm _ = empty
 
 -- | Creates an MD5 hash of @input@ and returns a 32-digit hex string
 md5 :: [B.ByteString] -> B.ByteString
 md5 = B16.encode . MD5.hash . B.intercalate ":"
 
-instance AuthData (DigestAuth realm) where
+
+instance (KnownSymbol realm) => AuthData (DigestAuth realm) where
   authData request = do
     authBs <- lookup "Authorization" (requestHeaders request)
     case parseOnly parseAuthorizationHeader authBs of
-      Left a -> Nothing
+      Left a -> empty
       Right vals -> do
         username <- lookup "username" vals
         realm <- lookup "realm" vals
+        guard $ realm == (fromString . symbolVal $ (Proxy :: Proxy realm))
         nonce <- lookup "nonce" vals
         digestURI <- lookup "uri" vals
-        response <- lookup "response" vals
-        let algorithm = maybe MD5 id $ parseAlgorithm =<< lookup "algorithm" vals
-        let cnonce = lookup "cnonce" vals
-        let opaque = lookup "opaque" vals
-        let qop = lookup "qop" vals
-        let nonceCount = lookup "nc" vals
         let method = requestMethod request
-        return $ DigestAuth username realm nonce digestURI method response algorithm cnonce opaque qop nonceCount
+        response <- lookup "response" vals
+        let makeQop "auth-int" = do
+              cnonce <- lookup "cnonce" vals
+              nc <- either (const empty) return . parseOnly hexadecimal =<< lookup "nc" vals
+              return $ Qop cnonce nc
+            makeQop _ = empty
+        let qop = makeQop =<< lookup "nc" vals
+        let algorithm = maybe MD5 id $ parseAlgorithm =<< lookup "algorithm" vals
+        return $ DigestAuth username nonce digestURI method response algorithm qop
+
 
 parseAuthorizationHeader :: Parser [(B.ByteString, B.ByteString)]
 parseAuthorizationHeader = (string "Digest") *> space *> props
@@ -152,6 +159,7 @@ parseAuthorizationHeader = (string "Digest") *> space *> props
         prop  = (,) <$> (word <* char '=') <*> (quotedString <|> word)
         word  = takeWhile1 (\x -> (isAlphaNum x) || x =='_' || x == '.' || x=='-' || x ==':')
         quotedString = char '"' *> P.takeWhile (not . (=='"')) <* char '"'
+
 
 digestAuthCheck :: forall realm user. KnownSymbol realm
                 => (user -> B.ByteString) -- ^ How to get the MD5(user:realm:passwd) hash
@@ -162,21 +170,19 @@ digestAuthCheck ha1 lookupUser authData = do
   let realmBytes = (fromString . symbolVal $ (Proxy :: Proxy realm))
   return $ do
     user <- maybeUser
-    guard $ daRealm authData == realmBytes
-    -- currently only MD5 algorithm is supported. So we can assume algorithm is that
-
     let ha2 = md5 [daMethod authData, daDigestURI authData]
-    response <-
-      case daQop authData of
-        Just "auth" -> do
-          nc <- daNonceCount authData
-          cn <- daCNonce authData
-          return $ md5 [ha1 user, daNonce authData, nc, cn, "auth", ha2]
-
-        Just _  -> Nothing
-        Nothing ->
-          return $ md5 [ha1 user, daNonce authData, ha2]
-
+    let response = 
+          case daQop authData of
+            Just qop ->
+              md5 [ ha1 user
+                  , daNonce authData
+                  , fromString $ showHex (qNonceCount qop) ""
+                  , qCNonce qop
+                  , "auth"
+                  , ha2
+                  ]
+            Nothing ->
+              md5 [ha1 user, daNonce authData, ha2]
     guard $ response == daResponse authData
     return user
 
@@ -186,9 +192,8 @@ digestAuthHandlers = AuthHandlers onMissingAuthData (const onMissingAuthData)
     onMissingAuthData = do
       g <- Nonce.new
       nonce <- B16.encode <$> Nonce.nonce128 g
-      opaque <- B16.encode <$> Nonce.nonce128 g
       let realmBytes = (fromString . symbolVal) (Proxy :: Proxy realm)
-      let headerBytes = "Digest realm=\"" <> realmBytes <> "\",nonce=\""<>nonce<>"\",opaque=\""<>opaque<>"\""
+      let headerBytes = "Digest realm=\"" <> realmBytes <> "\",qop=\"auth\",nonce=\""<>nonce
       return $ responseBuilder status401 [("WWW-Authenticate", headerBytes)] mempty
 
 digestAuthStrict ha1 lookup subserver = strictProtect (digestAuthCheck ha1 lookup) digestAuthHandlers subserver
