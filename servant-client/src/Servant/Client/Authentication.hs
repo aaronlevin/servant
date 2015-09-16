@@ -21,6 +21,6 @@ class AuthenticateRequest a where
 
 instance AuthenticateRequest (BasicAuth realm) where
     authReq (BasicAuth user pass) req =
-        let authText = decodeUtf8 ("Basic " <> encode (user <> ":" <> pass)) in
+        let authText = decodeUtf8 ("Basic " <> Base64.encode (user <> ":" <> pass)) in
             addHeader "Authorization" authText req
 

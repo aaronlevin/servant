@@ -7,6 +7,7 @@ import Data.Proxy
 import Servant.API
 import Servant.API.Authentication
 import Servant.Server
+import Servant.Server.Internal.Authentication
 import Network.Wai.Handler.Warp
 
 
