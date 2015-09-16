@@ -142,12 +142,12 @@ instance (KnownSymbol realm) => AuthData (DigestAuth realm) where
         digestURI <- lookup "uri" vals
         let method = requestMethod request
         response <- lookup "response" vals
-        let makeQop "auth-int" = do
+        let makeQop "auth" = do
               cnonce <- lookup "cnonce" vals
-              nc <- either (const empty) return . parseOnly hexadecimal =<< lookup "nc" vals
+              nc <- lookup "nc" vals
               return $ Qop cnonce nc
             makeQop _ = empty
-        let qop = makeQop =<< lookup "nc" vals
+        let qop = makeQop =<< lookup "qop" vals
         let algorithm = maybe MD5 id $ parseAlgorithm =<< lookup "algorithm" vals
         return $ DigestAuth username nonce digestURI method response algorithm qop
 
@@ -167,7 +167,6 @@ digestAuthCheck :: forall realm user. KnownSymbol realm
                 -> (DigestAuth realm -> IO (Maybe user))
 digestAuthCheck ha1 lookupUser authData = do
   maybeUser <- lookupUser authData
-  let realmBytes = (fromString . symbolVal $ (Proxy :: Proxy realm))
   return $ do
     user <- maybeUser
     let ha2 = md5 [daMethod authData, daDigestURI authData]
@@ -176,7 +175,7 @@ digestAuthCheck ha1 lookupUser authData = do
             Just qop ->
               md5 [ ha1 user
                   , daNonce authData
-                  , fromString $ showHex (qNonceCount qop) ""
+                  , qNonceCount qop
                   , qCNonce qop
                   , "auth"
                   , ha2
@@ -193,7 +192,7 @@ digestAuthHandlers = AuthHandlers onMissingAuthData (const onMissingAuthData)
       g <- Nonce.new
       nonce <- B16.encode <$> Nonce.nonce128 g
       let realmBytes = (fromString . symbolVal) (Proxy :: Proxy realm)
-      let headerBytes = "Digest realm=\"" <> realmBytes <> "\",qop=\"auth\",nonce=\""<>nonce
+      let headerBytes = "Digest realm=\"" <> realmBytes <> "\",qop=\"auth\",nonce=\""<>nonce<>"\""
       return $ responseBuilder status401 [("WWW-Authenticate", headerBytes)] mempty
 
 digestAuthStrict ha1 lookup subserver = strictProtect (digestAuthCheck ha1 lookup) digestAuthHandlers subserver

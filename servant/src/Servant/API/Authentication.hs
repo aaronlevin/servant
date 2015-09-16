@@ -41,7 +41,7 @@ data Algorithm = MD5
 
 data Qop = Qop
   { qCNonce     :: ByteString
-  , qNonceCount :: Int
+  , qNonceCount :: ByteString
   }
 
 data DigestAuth (realm :: Symbol) =
