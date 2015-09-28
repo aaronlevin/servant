@@ -4,7 +4,11 @@
 {-# LANGUAGE PolyKinds          #-}
 {-# LANGUAGE TypeFamilies       #-}
 {-# OPTIONS_HADDOCK not-home    #-}
-module Servant.API.Authentication where
+module Servant.API.Authentication
+  ( AuthPolicy(..)
+  , BasicAuth (..)
+  , DigestAuth
+  ) where
 
 import           Data.Attoparsec.ByteString
 import           Data.ByteString            (ByteString)
@@ -31,29 +35,4 @@ data family AuthProtected authdata usr subserver :: AuthPolicy -> *
 data BasicAuth (realm :: Symbol) = BasicAuth { baUser :: ByteString
                                              , baPass :: ByteString
                                              } deriving (Eq, Show, Typeable)
-
-
-data Algorithm = MD5
-               deriving (Eq, Show, Typeable)
-
--- | Digest Authentication 
--- hmm do we want partial functions?
-
-data Qop = Qop
-  { qCNonce     :: ByteString
-  , qNonceCount :: ByteString
-  }
-
-data DigestAuth (realm :: Symbol) =
-  DigestAuth
-    { daUsername    :: ByteString
-    , daNonce       :: ByteString
-    , daDigestURI   :: ByteString
-    , daMethod      :: ByteString
-    , daResponse    :: ByteString
-    , daAlgorithm   :: Algorithm
-    , daQop         :: Maybe Qop
-    }
-
-
 

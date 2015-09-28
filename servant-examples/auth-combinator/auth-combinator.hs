@@ -8,7 +8,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 import Data.Aeson
 import Data.ByteString (ByteString)
@@ -98,19 +97,3 @@ $ curl -H "Cookie: good password" http://localhost:8080/private
 $ curl -H "Cookie: bad password" http://localhost:8080/private
 Invalid cookie.
 -}
-
-
-class PathPiece s where
-  fromPathPice :: Text -> Maybe s
-  toPathPiece :: s -> Text
-
-
-instance (FromText s, ToText s) => PathPiece s where
-  fromPathPice = fromText
-  toPathPiece = toText
-
-
-instance (PathPiece s) => FromText s where
-  fromText = fromPathPice
-instance (PathPiece s) => ToText s where
-  toText = toPathPiece
